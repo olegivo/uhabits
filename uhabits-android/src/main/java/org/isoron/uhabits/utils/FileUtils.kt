@@ -47,7 +47,7 @@ fun InputStream.copyTo(out: OutputStream) {
 
 object FileUtils {
     @JvmStatic
-    fun getDir(potentialParentDirs: Array<File>, relativePath: String): File? {
+    fun getDir(potentialParentDirs: List<File>, relativePath: String): File? {
         val chosenDir: File? = potentialParentDirs.firstOrNull { dir -> dir.canWrite() }
         if (chosenDir == null) {
             Log.e("FileUtils", "getDir: all potential parents are null or non-writable")
@@ -62,8 +62,8 @@ object FileUtils {
     }
 
     @JvmStatic
-    fun getSDCardDir(relativePath: String): File? {
-        val parents = arrayOf(Environment.getExternalStorageDirectory())
-        return getDir(parents, relativePath)
-    }
+    fun getSDCardDir(relativePath: String): File? = getDir(
+        potentialParentDirs = listOf(Environment.getExternalStorageDirectory()),
+        relativePath = relativePath
+    )
 }

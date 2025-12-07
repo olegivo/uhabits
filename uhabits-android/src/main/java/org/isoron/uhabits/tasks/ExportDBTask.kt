@@ -28,24 +28,35 @@ import java.io.IOException
 class ExportDBTask(
     @param:AppContext private val context: Context,
     private val system: AndroidDirFinder,
-    private val listener: Listener
-) : Task {
-    private var filename: String? = null
+    private val listener: Listener,
+): Task {
+    private lateinit var result: Result
+
     override fun doInBackground() {
-        filename = null
-        filename = try {
-            val dir = system.getFilesDir("Backups") ?: return
-            saveDatabaseCopy(context, dir)
+        result = try {
+            system.getFilesDir("Backups")?.let { dir ->
+                val filename = saveDatabaseCopy(context, dir)
+                Result.Success(filename)
+            } ?: Result.CannotFindSaveDirError
         } catch (e: IOException) {
             throw RuntimeException(e)
         }
     }
 
     override fun onPostExecute() {
-        listener.onExportDBFinished(filename)
+        when (val actual = result) {
+            Result.CannotFindSaveDirError -> listener.onExportDBError()
+            is Result.Success -> listener.onExportDBFinished(actual.filename)
+        }
     }
 
-    fun interface Listener {
-        fun onExportDBFinished(filename: String?)
+    interface Listener {
+        fun onExportDBFinished(filename: String)
+        fun onExportDBError()
+    }
+
+    private sealed interface Result {
+        data class Success(val filename: String): Result
+        data object CannotFindSaveDirError: Result
     }
 }

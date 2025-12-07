@@ -64,6 +64,7 @@ import org.isoron.uhabits.core.ui.screens.habits.list.ListHabitsSelectionMenuBeh
 import org.isoron.uhabits.inject.ActivityContext
 import org.isoron.uhabits.inject.ActivityScope
 import org.isoron.uhabits.intents.IntentFactory
+import org.isoron.uhabits.tasks.ExportDBTask
 import org.isoron.uhabits.tasks.ExportDBTaskFactory
 import org.isoron.uhabits.tasks.ImportDataTask
 import org.isoron.uhabits.tasks.ImportDataTaskFactory
@@ -102,8 +103,8 @@ class ListHabitsScreen
     private val colorPickerFactory: ColorPickerDialogFactory,
     private val behavior: Lazy<ListHabitsBehavior>,
     private val preferences: Preferences,
-    private val rootView: Lazy<ListHabitsRootView>
-) : CommandRunner.Listener,
+    private val rootView: Lazy<ListHabitsRootView>,
+): CommandRunner.Listener,
     ListHabitsBehavior.Screen,
     ListHabitsMenuBehavior.Screen,
     ListHabitsSelectionMenuBehavior.Screen {
@@ -270,7 +271,7 @@ class ListHabitsScreen
     override fun showNumberPopup(
         value: Double,
         notes: String,
-        callback: ListHabitsBehavior.NumberPickerCallback
+        callback: ListHabitsBehavior.NumberPickerCallback,
     ) {
         val fm = (context as AppCompatActivity).supportFragmentManager
         val dialog = NumberDialog()
@@ -286,7 +287,7 @@ class ListHabitsScreen
         selectedValue: Int,
         notes: String,
         color: PaletteColor,
-        callback: ListHabitsBehavior.CheckMarkDialogCallback
+        callback: ListHabitsBehavior.CheckMarkDialogCallback,
     ) {
         val theme = rootView.get().currentTheme()
         val fm = (context as AppCompatActivity).supportFragmentManager
@@ -364,15 +365,19 @@ class ListHabitsScreen
         )
     }
 
+    private val exportDBTaskListener = object: ExportDBTask.Listener {
+        override fun onExportDBFinished(filename: String) {
+            activity.showSendFileScreen(filename)
+        }
+
+        override fun onExportDBError() {
+            activity.showMessage(activity.resources.getString(R.string.could_not_export))
+        }
+    }
+
     private fun onExportDB() {
         taskRunner.execute(
-            exportDBFactory.create { filename ->
-                if (filename != null) {
-                    activity.showSendFileScreen(filename)
-                } else {
-                    activity.showMessage(activity.resources.getString(R.string.could_not_export))
-                }
-            }
+            exportDBFactory.create(exportDBTaskListener)
         )
     }
 }
