@@ -19,17 +19,48 @@
 package org.isoron.uhabits
 
 import android.content.Context
+import android.os.Environment
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import org.isoron.uhabits.inject.AppContext
 import org.isoron.uhabits.utils.FileUtils
 import java.io.File
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.seconds
 
 class AndroidDirFinder @Inject constructor(@param:AppContext private val context: Context) {
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     fun getFilesDir(relativePath: String): File? {
-        return FileUtils.getDir(
-            ContextCompat.getExternalFilesDirs(context, null).filterNotNull(),
-            relativePath
-        )
+        return runBlocking(scope.coroutineContext) {
+            var result: File? = null
+            var i = 5
+            while (result == null && i > 0) {
+                val potentialParentDirs = ContextCompat.getExternalFilesDirs(context, null)
+                    .filter { it != null && isStorageWritable(it) }
+                if (potentialParentDirs.isNotEmpty()) {
+                    result = FileUtils.getDir(
+                        potentialParentDirs = potentialParentDirs,
+                        relativePath = relativePath
+                    )
+                }
+
+                if (result == null) {
+                    i--
+                    delay(1.seconds)
+                }
+            }
+
+            result
+        }
+    }
+
+    private fun isStorageWritable(storageDir: File?): Boolean {
+        return storageDir != null && storageDir.exists() &&
+            Environment.getExternalStorageState(storageDir) == Environment.MEDIA_MOUNTED
     }
 }
